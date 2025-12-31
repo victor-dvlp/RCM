@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roleta Drink - Dark Edition</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --text: #e1e1e1;
+            --accent: #cf6679;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container { width: 100%; max-width: 400px; padding: 20px; text-align: center; }
+        .hidden { display: none; }
+
+        /* TELA DE JOGADORES */
+        input {
+            width: 70%; background: var(--surface); border: 1px solid #333;
+            padding: 15px; border-radius: 12px; color: white; margin-bottom: 10px;
+        }
+
+        button {
+            cursor: pointer; border: none; border-radius: 12px;
+            font-weight: 700; text-transform: uppercase; transition: 0.2s;
+        }
+
+        .btn-add { background: var(--primary); padding: 15px; color: #000; }
+        .btn-main { width: 100%; padding: 18px; background: var(--secondary); color: #000; margin-top: 20px; }
+
+        .player-chip {
+            display: inline-block; background: #252525; padding: 8px 15px;
+            border-radius: 50px; margin: 5px; border: 1px solid #333; font-size: 0.8rem;
+        }
+
+        /* ROLETA */
+        .voter-identity {
+            font-size: 0.8rem; text-transform: uppercase; color: var(--primary);
+            letter-spacing: 2px; margin-bottom: 20px; display: block;
+        }
+
+        .roulette-wrapper { position: relative; width: 300px; height: 300px; margin: 0 auto; }
+        
+        .arrow {
+            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 15px solid transparent;
+            border-right: 15px solid transparent; border-top: 25px solid var(--primary); z-index: 10;
+        }
+
+        #wheel {
+            width: 100%; height: 100%; border-radius: 50%; border: 5px solid var(--surface);
+            position: relative; overflow: hidden;
+            transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
+            background: #252525;
+        }
+
+        #result-display { margin-top: 30px; font-size: 1.3rem; font-weight: 700; min-height: 50px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="setup-screen">
+            <h1 style="text-transform: uppercase; letter-spacing: 2px;">Jogadores</h1>
+            <input type="text" id="player-input" placeholder="Nome do Jogador">
+            <button class="btn-add" onclick="addPlayer()">Add</button>
+            <div id="player-list" style="margin-top: 20px;"></div>
+            <button class="btn-main" onclick="startGame()">Começar Roleta</button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <span class="voter-identity">Vez de: <strong id="current-player-name" style="color:white"></strong></span>
+            
+            <div class="roulette-wrapper">
+                <div class="arrow"></div>
+                <div id="wheel"></div>
+            </div>
+
+            <div id="result-display">Gire para o seu destino!</div>
+            <button class="btn-main" id="spin-btn" onclick="spinWheel()">Girar Roleta</button>
+        </div>
+    </div>
+
+    <script>
+        let players = [];
+        let currentPlayerIndex = 0;
+        let currentRotation = 0;
+
+        // Lista de 20+ Desafios Simples
+        const desafios = [
+            "Toma 1 Shot", "Escolhe 1 Amigo", "Imune (Passa)", "Todo Mundo Bebe", "Cria uma Regra",
+            "Shot Duplo", "Bebe quem é canhoto", "Bebe quem tem barba", "Dê 3 voltas e beba", 
+            "Bebe quem usar óculos", "Verdade ou Shot", "Pula a vez", "Dê 1 gole de água", 
+            "Bebem os solteiros", "Bebem os comprometidos", "Toma meio shot", "Dedo na mesa (último bebe)",
+            "Faça uma rima ou bebe", "Não fale 'SIM' (1 rodada)", "O da esquerda bebe", 
+            "O da direita bebe", "Bebe quem rir primeiro", "Escolhe um 'Pet' (bebe com vc)"
+        ];
+
+        function addPlayer() {
+            const input = document.getElementById('player-input');
+            const name = input.value.trim();
+            if (name && !players.includes(name)) {
+                players.push(name);
+                document.getElementById('player-list').innerHTML += `<span class="player-chip">${name}</span>`;
+                input.value = ""; input.focus();
+            }
+        }
+
+        function startGame() {
+            if (players.length < 1) return alert("Adicione jogadores!");
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            
+            // Montar a roleta visualmente com 8 fatias aleatórias da lista de desafios por vez
+            setupWheel();
+            updateTurn();
+        }
+
+        function updateTurn() {
+            document.getElementById('current-player-name').innerText = players[currentPlayerIndex];
+        }
+
+        let currentOptions = [];
+        function setupWheel() {
+            const wheel = document.getElementById('wheel');
+            wheel.innerHTML = "";
+            // Sorteia 8 desafios aleatórios da lista de 23 para compor a roleta atual
+            currentOptions = [...desafios].sort(() => 0.5 - Math.random()).slice(0, 8);
+            
+            currentOptions.forEach((text, i) => {
+                const slice = document.createElement('div');
+                slice.style.position = "absolute";
+                slice.style.width = "100%";
+                slice.style.height = "100%";
+                slice.style.transform = `rotate(${i * 45}deg)`;
+                slice.style.textAlign = "center";
+                slice.style.paddingTop = "20px";
+                slice.style.boxSizing = "border-box";
+                slice.style.fontSize = "0.7rem";
+                slice.style.fontWeight = "bold";
+                slice.innerHTML = `<span style="display:inline-block; transform: rotate(22.5deg); width: 80px;">${text}</span>`;
+                wheel.appendChild(slice);
+            });
+        }
+
+        function spinWheel() {
+            const btn = document.getElementById('spin-btn');
+            btn.disabled = true;
+            
+            const extraDegrees = Math.floor(Math.random() * 360);
+            const totalDegrees = 1800 + extraDegrees; 
+            currentRotation += totalDegrees;
+            
+            document.getElementById('wheel').style.transform = `rotate(${currentRotation}deg)`;
+
+            setTimeout(() => {
+                btn.disabled = false;
+                const actualDegrees = currentRotation % 360;
+                const index = Math.floor(((360 - actualDegrees) % 360) / 45);
+                
+                document.getElementById('result-display').innerText = currentOptions[index];
+                document.getElementById('result-display').style.color = "var(--secondary)";
+
+                // Muda o jogador para o próximo após o giro
+                currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+                
+                // Pequeno delay para ler o resultado antes de mudar o nome do próximo
+                setTimeout(updateTurn, 2000);
+                
+                // Opcional: Embaralha a roleta para a próxima pessoa
+                setTimeout(setupWheel, 2500);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

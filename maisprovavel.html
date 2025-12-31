@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quem é Mais Provável - RCM</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --error: #cf6679;
+            --text-main: #e1e1e1;
+            --text-dim: #a0a0a0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        .hidden { display: none; }
+
+        h1 {
+            font-size: 1.8rem;
+            letter-spacing: -1px;
+            margin-bottom: 30px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--primary); }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .btn-add { background: var(--primary); color: #000; padding: 0 20px; }
+        
+        .btn-main {
+            width: 100%;
+            padding: 18px;
+            background: var(--secondary);
+            color: #000;
+            margin-top: 20px;
+        }
+
+        .btn-vote {
+            width: 100%;
+            padding: 15px;
+            background: var(--surface);
+            color: var(--text-main);
+            border: 1px solid #333;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+        .btn-vote:active { background: #333; }
+
+        .player-chip {
+            display: inline-flex;
+            align-items: center;
+            background: #252525;
+            padding: 8px 16px;
+            border-radius: 50px;
+            margin: 4px;
+            font-size: 0.85rem;
+            border: 1px solid #333;
+        }
+
+        .question-card {
+            background: var(--surface);
+            padding: 25px;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            line-height: 1.4;
+            font-weight: 600;
+        }
+
+        .voter-identity {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--primary);
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .result-img {
+            width: 100%;
+            border-radius: 16px;
+            filter: grayscale(0.2);
+            margin-bottom: 20px;
+        }
+
+        .winner-display {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--primary);
+            margin: 10px 0;
+            display: block;
+        }
+
+        hr { border: 0; border-top: 1px solid #333; margin: 30px 0; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="setup-screen">
+            <h1>Jogadores</h1>
+            <div class="input-group">
+                <input type="text" id="player-input" placeholder="Nome do amigo">
+                <button class="btn-add" onclick="addPlayer()">Add</button>
+            </div>
+            <div id="player-list"></div>
+            <button class="btn-main" onclick="startGame()">Começar Jogo</button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <span id="turn-info" class="voter-identity"></span>
+            <div class="question-card">
+                <div id="current-question" class="question-text"></div>
+            </div>
+            <div id="vote-options"></div>
+        </div>
+
+        <div id="result-screen" class="hidden">
+            <h1 style="margin-bottom: 10px;">O Veredito</h1>
+            <img id="random-result-img" class="result-img" src="" alt="Resultado">
+            <div id="final-question" style="color: var(--text-dim); margin-bottom: 10px;"></div>
+            <span id="winner-name" class="winner-display"></span>
+            <p style="letter-spacing: 1px;">BEBA <span id="shot-count" style="color: var(--secondary);"></span> SHOT(S)</p>
+            <button class="btn-main" onclick="nextRound()" style="background: var(--primary);">Próxima Rodada</button>
+        </div>
+    </div>
+
+    <script>
+        let players = [];
+        let votes = {};
+        let currentQuestion = "";
+        let currentVoterIndex = 0;
+
+        // Suas imagens locais
+        const imagensResultado = [
+            "./caralhitico.jpeg", 
+            "./cheirar.jpeg"
+        ];
+
+        const perguntas = [
+            "Ser preso por algo estúpido",
+            "Ficar rico com uma ideia absurda",
+            "Casar com um desconhecido em Vegas",
+            "Esquecer onde estacionou o carro",
+            "Gastar todo o salário em uma única noite",
+            "Dormir no meio da balada",
+            "Mandar mensagem para o(a) ex no rolê",
+            "Dizer que 'amanhã não bebo mais'",
+            "Tropeçar subindo a escada",
+            "Perder o celular na primeira hora de festa"
+        ];
+
+        function addPlayer() {
+            const input = document.getElementById('player-input');
+            const name = input.value.trim();
+            if (name && !players.includes(name)) {
+                players.push(name);
+                const list = document.getElementById('player-list');
+                const chip = document.createElement('span');
+                chip.className = 'player-chip';
+                chip.innerText = name;
+                list.appendChild(chip);
+                input.value = "";
+                input.focus();
+            }
+        }
+
+        function startGame() {
+            if (players.length < 2) {
+                alert("Adicione pelo menos 2 pessoas.");
+                return;
+            }
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            startRound();
+        }
+
+        function startRound() {
+            currentVoterIndex = 0;
+            votes = {};
+            players.forEach(p => votes[p] = 0);
+            currentQuestion = perguntas[Math.floor(Math.random() * perguntas.length)];
+            document.getElementById('current-question').innerText = currentQuestion;
+            updateVoteScreen();
+        }
+
+        function updateVoteScreen() {
+            document.getElementById('turn-info').innerText = `Votando agora: ${players[currentVoterIndex]}`;
+            const container = document.getElementById('vote-options');
+            container.innerHTML = "";
+            players.forEach(p => {
+                const btn = document.createElement('button');
+                btn.innerText = p;
+                btn.className = 'btn-vote';
+                btn.onclick = () => castVote(p);
+                container.appendChild(btn);
+            });
+        }
+
+        function castVote(targetPlayer) {
+            votes[targetPlayer]++;
+            currentVoterIndex++;
+            if (currentVoterIndex < players.length) {
+                updateVoteScreen();
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            const winner = Object.keys(votes).reduce((a, b) => votes[a] > votes[b] ? a : b);
+            
+            const imgElement = document.getElementById('random-result-img');
+            imgElement.src = imagensResultado[Math.floor(Math.random() * imagensResultado.length)];
+
+            document.getElementById('final-question').innerText = "Mais provável de " + currentQuestion.toLowerCase();
+            document.getElementById('winner-name').innerText = winner;
+            document.getElementById('shot-count').innerText = votes[winner];
+        }
+
+        function nextRound() {
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            startRound();
+        }
+    </script>
+</body>
+</html>
